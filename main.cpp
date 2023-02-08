@@ -23,28 +23,35 @@ char* concat(int start, int argc, const char* argv[]) {
     return newStr;
 }
 
-enum class MOperator { ADD, SUB, MULT, DIV, PWR };
+enum class MOperator { ADD, SUB, MULT, DIV, PWR, MOD };
+struct MOpPair {MOperator op; char c; };
+const MOpPair opPairs[] = {
+    {MOperator::ADD, '+'},
+    {MOperator::SUB, '-'},
+    {MOperator::MULT, '*'},
+    {MOperator::DIV, '/'},
+    {MOperator::PWR, '^'},
+    {MOperator::MOD, '%'},
+};
+const size_t opCount = sizeof(opPairs) / sizeof(opPairs[0]);
+
 char opChar(MOperator op) {
-    switch (op) {
-        case MOperator::ADD: return '+';
-        case MOperator::SUB: return '-';
-        case MOperator::MULT: return '*';
-        case MOperator::DIV: return '/';
-        case MOperator::PWR: return '^';
-        default: return '~';
-    }
+    for (int i=0;i<opCount;++i) if (op == opPairs[i].op) return opPairs[i].c;
+    return '\0';
 }
 class MToken {
     union { int v_int; MOperator v_operator; bool v_open; };
     enum class Type { N, INTEGER, OPERATOR, GROUP } type; // N is NULL
 public:
-    MToken() : type(Type::N) { }
-    MToken(int v) : type(Type::INTEGER), v_int(v) { }
-    MToken(MOperator o) : type(Type::OPERATOR), v_operator(o) { }
-    MToken(bool o) : type(Type::GROUP), v_open(o) { }
+    MToken() : type(Type::N) { } // null/empty/whitespace
+    MToken(int v) : type(Type::INTEGER), v_int(v) { } // numeral constants
+    MToken(MOperator o) : type(Type::OPERATOR), v_operator(o) { } // operators
+    MToken(bool o) : type(Type::GROUP), v_open(o) { } // group
 
     int value_int() { return v_int; }
     MOperator value_operator() { return v_operator; }
+    bool value_group_opener() { return v_open; }
+
     void print() {
         switch (type) {
             case Type::N: return;
@@ -67,27 +74,13 @@ size_t tokenize(const char* str, MToken* arr) {
         if (isdigit(c)) {
             arr[sz++] = MToken(c - 48);
         }
-        else if (c == '+') {
-            arr[sz++] = MToken(MOperator::ADD);
-        }
-        else if (c == '-') {
-            arr[sz++] = MToken(MOperator::SUB);
-        }
-        else if (c == '*') {
-            arr[sz++] = MToken(MOperator::MULT);
-        }
-        else if (c == '/' || c == '\\') {
-            arr[sz++] = MToken(MOperator::DIV);
-        }
-        else if (c == '^') {
-            arr[sz++] = MToken(MOperator::PWR);
-        }
-        else if (c == '(') {
-            arr[sz++] = MToken(true);
-        }
-        else if (c == ')') {
-            arr[sz++] = MToken(false);
-        }
+        else if (c == '+') { arr[sz++] = MToken(MOperator::ADD); } // TODO: Find out how to use placement new here!
+        else if (c == '-') { arr[sz++] = MToken(MOperator::SUB); }
+        else if (c == '*') { arr[sz++] = MToken(MOperator::MULT); }
+        else if (c == '/' || c == '\\') { arr[sz++] = MToken(MOperator::DIV); }
+        else if (c == '^') { arr[sz++] = MToken(MOperator::PWR); }
+        else if (c == '(') { arr[sz++] = MToken(true); }
+        else if (c == ')') { arr[sz++] = MToken(false); }
     }
     return sz;
 }
