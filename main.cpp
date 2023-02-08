@@ -10,7 +10,7 @@ char* concat(int start, int argc, const char* argv[]) {
     }
     if (sum < 1) return new char('\0');
     
-    char* newStr = new char[sum+1];
+    char* newStr = new char[sum+3];
     *newStr = '\0';
 
     for (int i=start;i<argc;++i) {
