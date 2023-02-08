@@ -2,22 +2,21 @@
 #include <cstring>
 
 char* concat(int start, int argc, const char* argv[]) {
-    size_t sum = 0;
+    size_t sz = 0;
     for (int i=start;i<argc;++i) {
         const size_t len = strlen(argv[i]);
-        sum += len;
-        if (len > 0) ++sum;
+        sz += len + 1;
     }
-    if (sum < 1) return new char('\0');
+    if (sz < 1) return new char('\0');
     
-    char* newStr = new char[sum+3];
+    char* newStr = new char[sz+3];
     *newStr = '\0';
 
     for (int i=start;i<argc;++i) {
         const size_t len = strlen(argv[i]);
         if (len > 0) {
             strcat(newStr, argv[i]);
-            strcat(newStr, " ");
+            if (i < argc-1) strcat(newStr, " ");
         }
     }
 
@@ -36,12 +35,13 @@ char opChar(MOperator op) {
     }
 }
 class MToken {
-    union { int v_int; MOperator v_operator; };
-    enum class Type { N, INTEGER, OPERATOR } type; // N is NULL
+    union { int v_int; MOperator v_operator; bool v_open; };
+    enum class Type { N, INTEGER, OPERATOR, GROUP } type; // N is NULL
 public:
     MToken() : type(Type::N) { }
     MToken(int v) : type(Type::INTEGER), v_int(v) { }
     MToken(MOperator o) : type(Type::OPERATOR), v_operator(o) { }
+    MToken(bool o) : type(Type::GROUP), v_open(o) { }
 
     int value_int() { return v_int; }
     MOperator value_operator() { return v_operator; }
@@ -50,37 +50,45 @@ public:
             case Type::N: return;
             case Type::INTEGER: printf("%i", v_int); return;
             case Type::OPERATOR: printf("%c", opChar(v_operator)); return;
+            case Type::GROUP: printf("%c", v_open ? '(' : ')'); return;
         }
     }
 };
 
 // return count
 size_t tokenize(const char* str, MToken* arr) {
-    size_t sz;
+    size_t sz = 0;
     size_t len = strlen(str);
     for (int i=0;i<len;++i) {
-        int c = (int) str[i];
+        char ch = str[i];
+        int c = (int) ch;
+        printf("%i, %c\n", c, ch);
         if (iscntrl(c) || isblank(c)) continue;
         if (isdigit(c)) {
-            new (arr + (sz++)) MToken(c);
+            arr[sz++] = MToken(c - 48);
         }
         else if (c == '+') {
-            new (arr + (sz++)) MToken(MOperator::ADD);
+            arr[sz++] = MToken(MOperator::ADD);
         }
         else if (c == '-') {
-            new (arr + (sz++)) MToken(MOperator::SUB);
+            arr[sz++] = MToken(MOperator::SUB);
         }
         else if (c == '*') {
-            new (arr + (sz++)) MToken(MOperator::MULT);
+            arr[sz++] = MToken(MOperator::MULT);
         }
         else if (c == '/' || c == '\\') {
-            new (arr + (sz++)) MToken(MOperator::DIV);
+            arr[sz++] = MToken(MOperator::DIV);
         }
-        else if (c == '*') {
-            new (arr + (sz++)) MToken(MOperator::PWR);
+        else if (c == '^') {
+            arr[sz++] = MToken(MOperator::PWR);
+        }
+        else if (c == '(') {
+            arr[sz++] = MToken(true);
+        }
+        else if (c == ')') {
+            arr[sz++] = MToken(false);
         }
     }
-
     return sz;
 }
 
@@ -94,8 +102,9 @@ int main(int argc, const char* argv[]) {
     printf("Tokenized:\n  ");
     for (int i=0;i<tknCt;++i) {
         tkns[i].print();
-        printf("\n  ");
+        printf(" ");
     }
+    printf("\n");
 
     return 0;
 }
