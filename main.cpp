@@ -175,6 +175,7 @@ int main(int argc, const char* argv[]) {
 
     Stack<MToken> stack{};
 
+    // https://en.wikipedia.org/wiki/Shunting_yard_algorithm
     printf("Parsing:\n");
     while (input) {
         MToken* tok = input.dequeue();
@@ -183,7 +184,16 @@ int main(int argc, const char* argv[]) {
         printf(" ]");
 
         if (tok->is_group()) {
-            printf(" %s\n", tok->value_group_opener() ? "opener" : "closer");
+            printf(" group %s\n", tok->value_group_opener() ? "opener" : "closer");
+        }
+        else if (tok->is_int()) {
+            printf(" integer constant\n");
+        }
+        else if (tok->is_operator()) {
+            printf(" operator\n");
+        }
+        else if (tok->is_null()) {
+            printf(" NULL TOKEN!!!\n");
         }
         else {
             printf("\n");
@@ -224,40 +234,42 @@ int main(int argc, const char* argv[]) {
                 stack.push(tok);
             }
             else {
-                printf("Found closer, searching for opener...\n");
+                // printf("Found closer, searching for opener...\n");
                 while (stack) {
                     const MToken* peek = stack.peek();
-                    printf("  ");
-                    peek->print();
+                    // printf("  ");
+                    // peek->print();
                     if (peek->is_group() && peek->value_group_opener()) {
                         stack.pop();
                         // TODO: Add "if (tok.is_function) pop+enqueue" here!
-                        printf("  Found closer! Breaking...\n");
+                        // printf("  Found closer! Breaking...\n");
                         break;
                     }
                     else {
                         output.enqueue(stack.pop());
-                        printf("  Inner!");
+                        // printf("  Inner!");
                     }
-                    printf("\n");
                 }
             }
         }
         else {
             printf("BAD CASE!\n");
         }
-        printf("    ");
+        printf("    Output: ");
         inlineQueue(output);
-        printf("  ");
+        printf("  Stack: ");
         inlineStack(stack);
         printf("\n\n");
     }
     while (stack) output.enqueue(stack.pop());
     printf("\n");
 
-    printf("Output:\n");
+    printf("Output (Postfix Notation):\n");
     printQueue(output);
     printStack(stack);
+
+    // TODO: Add evaluation
+    // TODO: Add ability to convert to abstract syntax tree, infix, or prefix notation.
 
     return 0;
 }
