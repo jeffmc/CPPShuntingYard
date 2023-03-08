@@ -151,7 +151,7 @@ void inlineStack(const Stack<MToken> &s) {
 bool parse_infix_to_postfix(Queue<MToken> &q) {
     Stack<MToken> stack{};
     // https://en.wikipedia.org/wiki/Shunting_yard_algorithm
-    printf("Parsing:\n");
+    printf("Parsing infix to postfix:\n");
     const size_t ct = q.size();
     size_t i = 0;
     while (i++ < ct) {
@@ -244,6 +244,16 @@ bool parse_infix_to_postfix(Queue<MToken> &q) {
     printf("\n");
 
     return true;
+}
+
+bool build_binary_expression_tree(Queue<MToken> &q, BTree<MToken> &bt) {
+    // Construct a queue of BNodes and evaluate them!
+    return false;
+} 
+
+void print_binary_expression_tree(BTree<MToken> &bt) {
+    // Unsure how to go about this.
+    printf("TODO: print_binary_expression_tree!\n");
 }
 
 int main(int argc, const char* argv[]) {
