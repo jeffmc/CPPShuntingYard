@@ -1,35 +1,35 @@
-// Since these are just structures for tokens, I built the types to copy values of data types
-// rather than keep references/pointers to originals.
+// All nodes keep references to original data.
 
+// LINEAR TYPES HERE:
 template <typename NT>
-struct Node {
+struct LNode { // Linear-node
     NT* data;
-    Node* next = nullptr;
+    LNode* next = nullptr;
 
-    Node(NT* ptr) : data(ptr) {}
+    LNode(NT* ptr) : data(ptr) {} // Node takes ownership of the data
 
     template <typename... Args>
-    Node(Args&&... args) {
+    LNode(Args&&... args) {
         data = new NT(std::forward<Args>(args)...);
     }
-    ~Node() { if (data) delete data; } // Node owns the data it is constructed with unless reassigned to different pointer/nullptr.
+    ~LNode() { if (data) delete data; } // Node owns the data it is constructed with unless reassigned to different pointer/nullptr.
 };
 
 template <typename T>
 struct Queue {
-    Node<T>* head = nullptr;
+    LNode<T>* head = nullptr;
     // friend void printQueue(const Queue<T>&&);
 
     operator bool() const { return head != nullptr; }
 
     void enqueue(T* t) // Queue takes ownership of the pointer/memory.
     {
-        Node<T>* nn = new Node<T>(t);
+        LNode<T>* nn = new LNode<T>(t);
         if (!head) {
             head = nn;
             return;
         }
-        Node<T>* ptr = head;
+        LNode<T>* ptr = head;
         while (ptr->next) ptr = ptr->next;
         ptr->next = nn;
     }
@@ -37,7 +37,7 @@ struct Queue {
     size_t size() const 
     {
         size_t sz = 0;
-        Node<T>* n = head;
+        LNode<T>* n = head;
         while (n) {
             ++sz;
             n = n->next;
@@ -49,7 +49,7 @@ struct Queue {
     {
         T* val = head->data;
         head->data = nullptr;
-        Node<T>* oldHead = head;
+        LNode<T>* oldHead = head;
         head = oldHead->next;
         delete oldHead;
         return val; 
@@ -58,13 +58,13 @@ struct Queue {
 
 template <typename T>
 struct Stack {
-    Node<T>* head = nullptr;
+    LNode<T>* head = nullptr;
     // friend void printStack(const Stack&&);
 
     size_t size() const 
     {
         size_t sz = 0;
-        Node<T>* n = head;
+        LNode<T>* n = head;
         while (n) {
             ++sz;
             n = n->next;
@@ -76,14 +76,14 @@ struct Stack {
 
     void push(T* t) // User gives ownership of memory to the stack.
     { 
-        Node<T>* nn = new Node<T>(t);
+        LNode<T>* nn = new LNode<T>(t);
         nn->next = head;
         head = nn;
     }
 
     T* pop() // User takes back ownership of pointer
     {
-        Node<T>* newHead = head->next;
+        LNode<T>* newHead = head->next;
         T* tptr = head->data;
         head->data = nullptr;
         delete head;
@@ -95,4 +95,28 @@ struct Stack {
     {
         return head->data;
     }
+};
+
+template <typename NT>
+struct BNode { // Binary tree node, has 2 children.
+    NT* data;
+    BNode *left = nullptr, *right = nullptr;
+    
+    BNode(NT* ptr) : data(ptr) {} // Node takes ownership of the data
+
+    template <typename... Args>
+    BNode(Args&&... args) {
+        data = new NT(std::forward<Args>(args)...);
+    }
+    ~BNode() { if (data) delete data; } // Node owns the data it is constructed with unless reassigned to different pointer/nullptr.
+
+    bool has_children() const { return left != nullptr || right != nullptr; }
+    bool is_leaf() const { return left == nullptr && right == nullptr; }
+};
+
+// Binary tree implementation
+template <typename T>
+struct BTree {
+    BNode<T>* head = nullptr;
+    
 };

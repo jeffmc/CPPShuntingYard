@@ -1,29 +1,8 @@
+#include <cassert>
 #include <iostream>
 #include <cstring>
 
 #include "types.h"
-
-char* concat(int start, int argc, const char* argv[]) {
-    size_t sz = 0;
-    for (int i=start;i<argc;++i) {
-        const size_t len = strlen(argv[i]);
-        sz += len + 1;
-    }
-    if (sz < 1) return new char('\0');
-    
-    char* newStr = new char[sz+3];
-    *newStr = '\0';
-
-    for (int i=start;i<argc;++i) {
-        const size_t len = strlen(argv[i]);
-        if (len > 0) {
-            strcat(newStr, argv[i]);
-            if (i < argc-1) strcat(newStr, " ");
-        }
-    }
-
-    return newStr;
-}
 
 enum class MOperator { ADD, SUB, MULT, DIV, PWR, MOD };
 struct MOpSpec {
@@ -54,13 +33,16 @@ const char* op_str(const MOperator op) {
 }
 
 class MToken {
-    union { int v_int; MOperator v_operator; bool v_open; };
-    enum class Type { N, INTEGER, OPERATOR, GROUP } type; // N is NULL
+public:
+    enum class Type { N, INTEGER, OPERATOR, GROUP_OPEN, GROUP_CLOSE };
+private:
+    union { int v_int; MOperator v_operator; };
+    Type type; // N is NULL
 public:
     MToken() : type(Type::N) { } // null/empty/whitespace
     MToken(int v) : type(Type::INTEGER), v_int(v) { } // numeral constants
     MToken(MOperator o) : type(Type::OPERATOR), v_operator(o) { } // operators
-    MToken(bool o) : type(Type::GROUP), v_open(o) { } // group
+    MToken(bool o) : type(o ? Type::GROUP_OPEN : Type::GROUP_CLOSE) { } // group
 
     void int_digit_append(int num) {
         if (!is_int()) return;
@@ -72,24 +54,27 @@ public:
     bool is_null() const { return type == Type::N; }
     bool is_int() const { return type == Type::INTEGER; }
     bool is_operator() const { return type == Type::OPERATOR; }
-    bool is_group() const { return type == Type::GROUP; }
+    bool is_group() const { return type == Type::GROUP_OPEN || type == Type::GROUP_CLOSE; }
 
     int value_int() const { return v_int; }
     MOperator value_operator() const { return v_operator; }
-    bool value_group_opener() const { return v_open; }
-    bool value_group_closer() const { return !v_open; }
+    bool value_group_opener() const { return type == Type::GROUP_OPEN; }
+    bool value_group_closer() const { return type == Type::GROUP_CLOSE; }
+
+    Type toktype() const { return type; }
 
     void print() const {
         switch (type) {
             case Type::N: printf("NULLTKN"); return;
             case Type::INTEGER: printf("%i", v_int); return;
             case Type::OPERATOR: printf("%s", op_str(v_operator)); return;
-            case Type::GROUP: printf("%c", v_open ? '(' : ')'); return;
+            case Type::GROUP_OPEN: printf("("); return;
+            case Type::GROUP_CLOSE: printf(")"); return;
         }
     }
 };
 
-// return count
+// returns number of MTokens recognized in str
 size_t tokenize(const char* str, Queue<MToken> &q) {
     size_t sz = 0;
     size_t len = strlen(str);
@@ -126,7 +111,7 @@ size_t tokenize(const char* str, Queue<MToken> &q) {
 
 void printQueue(const Queue<MToken> &q) {
     printf("Size: %i, (FRONT) ", q.size());
-    Node<MToken>* head = q.head;
+    LNode<MToken>* head = q.head;
     while (head) {
         head->data->print();
         printf(" ");
@@ -137,7 +122,7 @@ void printQueue(const Queue<MToken> &q) {
 
 void printStack(const Stack<MToken> &s) {
     printf("Size: %i, (TOP)\n  ", s.size());
-    Node<MToken>* head = s.head;
+    LNode<MToken>* head = s.head;
     while (head) {
         head->data->print();
         printf("\n  ");
@@ -147,7 +132,7 @@ void printStack(const Stack<MToken> &s) {
 }
 
 void inlineQueue(const Queue<MToken> &q) {
-    Node<MToken>* head = q.head;
+    LNode<MToken>* head = q.head;
     while (head) {
         head->data->print();
         head = head->next;
@@ -155,118 +140,132 @@ void inlineQueue(const Queue<MToken> &q) {
 }
 
 void inlineStack(const Stack<MToken> &s) {
-    Node<MToken>* head = s.head;
+    LNode<MToken>* head = s.head;
     while (head) {
         head->data->print();
         head = head->next;
     }
 }
 
-int main(int argc, const char* argv[]) {
-    const char* comb = concat(1,argc,argv);
-    printf("Raw: \"%s\"\n", comb);
-
-    Queue<MToken> input{}, output{};
-    size_t tknCt = tokenize(comb, input);
-
-    printf("Tokenized: "); 
-    inlineQueue(input);
-    printf("\n");
-
+// Parse from infix to postfix notation in-place.
+bool parse_infix_to_postfix(Queue<MToken> &q) {
     Stack<MToken> stack{};
-
     // https://en.wikipedia.org/wiki/Shunting_yard_algorithm
     printf("Parsing:\n");
-    while (input) {
-        MToken* tok = input.dequeue();
+    const size_t ct = q.size();
+    size_t i = 0;
+    while (i++ < ct) {
+        MToken* tok = q.dequeue();
         printf("[ ");
         tok->print();
-        printf(" ]");
+        printf(" ] ");
 
-        if (tok->is_group()) {
-            printf(" group %s\n", tok->value_group_opener() ? "opener" : "closer");
-        }
-        else if (tok->is_int()) {
-            printf(" integer constant\n");
-        }
-        else if (tok->is_operator()) {
-            printf(" operator\n");
-        }
-        else if (tok->is_null()) {
-            printf(" NULL TOKEN!!!\n");
-        }
-        else {
-            printf("\n");
+        // Print labels
+        switch (tok->toktype()) {
+            case MToken::Type::GROUP_OPEN: printf("group opener"); break;
+            case MToken::Type::GROUP_CLOSE: printf("group closer"); break;
+            case MToken::Type::INTEGER: printf("integer constant"); break;
+            case MToken::Type::OPERATOR: printf("math operator"); break;
+            default: assert(false); return false;
         }
 
-        if (tok->is_int()) {
-            output.enqueue(tok);
-        }
-        else if (tok->is_operator()) {
-            const MOpSpec& tokSpec = op_spec(tok->value_operator());
-            
-            while (stack) {
-                const MToken* peek = stack.peek();
-                if (peek->is_group()) {
-                    if (peek->value_group_opener()) break;
-                }
-                else if (peek->is_operator()) {
-                    const MOpSpec& peekSpec = op_spec(peek->value_operator());
-                    if (peekSpec.precedence > tokSpec.precedence) {
-                        output.enqueue(stack.pop()); // Pop and enqueue
+        printf("\n  ");
+
+        // Token behaviour
+        switch (tok->toktype()) {
+            case MToken::Type::INTEGER:
+                q.enqueue(tok);
+                break;
+            case MToken::Type::OPERATOR:
+                {
+                    const MOpSpec& tokSpec = op_spec(tok->value_operator());
+                    while (stack) {
+                        const MToken* peek = stack.peek();
+                        if (peek->is_group()) {
+                            if (peek->value_group_opener()) break;
+                        }
+                        else if (peek->is_operator()) {
+                            const MOpSpec& peekSpec = op_spec(peek->value_operator());
+                            if (peekSpec.precedence > tokSpec.precedence) {
+                                q.enqueue(stack.pop()); // Pop and enqueue
+                            }
+                            else if (peekSpec.precedence == tokSpec.precedence && tokSpec.assoc_left) {
+                                q.enqueue(stack.pop());
+                            }
+                            else {
+                                break;
+                            }
+                        }
+                        else {
+                            printf("BAD EQUATION!\n");
+                            return false;
+                        }
                     }
-                    else if (peekSpec.precedence == tokSpec.precedence && tokSpec.assoc_left) {
-                        output.enqueue(stack.pop());
-                    }
-                    else {
-                        break;
-                    }
+                    stack.push(tok);
                 }
-                else {
-                    printf("BAD EQUATION!\n");
-                    break;
-                }
-            }
-            stack.push(tok);
-        }
-        else if (tok->is_group()) {
-            if (tok->value_group_opener()) {
+                break;
+            case MToken::Type::GROUP_OPEN:
                 stack.push(tok);
-            }
-            else {
-                // printf("Found closer, searching for opener...\n");
-                while (stack) {
-                    const MToken* peek = stack.peek();
-                    // printf("  ");
-                    // peek->print();
-                    if (peek->is_group() && peek->value_group_opener()) {
-                        stack.pop();
-                        // TODO: Add "if (tok.is_function) pop+enqueue" here!
-                        // printf("  Found closer! Breaking...\n");
-                        break;
-                    }
-                    else {
-                        output.enqueue(stack.pop());
-                        // printf("  Inner!");
+                break;
+            case MToken::Type::GROUP_CLOSE:
+                {
+                    // printf("Found closer, searching for opener...\n");
+                    while (stack) {
+                        const MToken* peek = stack.peek();
+                        // printf("  ");
+                        // peek->print();
+                        if (peek->is_group() && peek->value_group_opener()) {
+                            stack.pop();
+                            // TODO: Add "if (tok.is_function) pop+enqueue" here!
+                            // printf("  Found closer! Breaking...\n");
+                            break;
+                        }
+                        else {
+                            q.enqueue(stack.pop());
+                            // printf("  Inner!");
+                        }
                     }
                 }
-            }
+                break;
+            default:
+                printf("BAD CASE!\n");
+                assert(false);
+                return false;
         }
-        else {
-            printf("BAD CASE!\n");
-        }
+
         printf("    Output: ");
-        inlineQueue(output);
+        inlineQueue(q);
         printf("  Stack: ");
         inlineStack(stack);
         printf("\n\n");
     }
-    while (stack) output.enqueue(stack.pop());
+    while (stack) q.enqueue(stack.pop());
+    assert(stack.size() == 0);
     printf("\n");
 
+    return true;
+}
+
+int main(int argc, const char* argv[]) {
+    if (argc < 2) { 
+        printf("Must specify an expression!\n");
+        return 1;
+    }
+
+    const char* expr = argv[1];
+    printf("Raw: \"%s\"\n", expr);
+
+    Queue<MToken> queue{};
+    tokenize(expr, queue);
+
+    printf("Tokenized: ");
+    inlineQueue(queue);
+    printf("\n");
+
+    parse_infix_to_postfix(queue);
+
     printf("Output (Postfix Notation):\n");
-    printQueue(output);
-    printStack(stack);
+    printQueue(queue);
 
     // TODO: Add evaluation
     // TODO: Add ability to convert to abstract syntax tree, infix, or prefix notation.
