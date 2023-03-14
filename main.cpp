@@ -1,17 +1,19 @@
 #include <cassert>
 #include <iostream>
 #include <cstring>
+#include <cmath>
 
 #include "types.h"
 
-enum class MOperator { ADD, SUB, MULT, DIV, PWR, MOD };
+
+enum class MOperator { ADD, SUB, MULT, DIV, PWR, MOD, N };
 struct MOpSpec {
     MOperator enum_val;
     const char* symbol;
     bool assoc_left;
     int precedence;
 };
-const MOpSpec BADSPEC = MOpSpec{ MOperator::MOD, "BAD_SHIT!", false, -1};
+const MOpSpec BADSPEC = MOpSpec{ MOperator::N, "BAD_SHIT!", false, -1};
 const MOpSpec opSpecs[] = {
     {MOperator::ADD,  "+", true,  0},
     {MOperator::SUB,  "-", true,  0},
@@ -246,14 +248,92 @@ bool parse_infix_to_postfix(Queue<MToken> &q) {
     return true;
 }
 
-bool build_binary_expression_tree(Queue<MToken> &q, BTree<MToken> &bt) {
-    // Construct a queue of BNodes and evaluate them!
-    return false;
-} 
+// Build binary expression tree from a post-fix notation queue.
+BNode<MToken>* build_binary_expression_tree(Queue<MToken> &pq) {
+    Stack<BNode<MToken>> bs{};
 
-void print_binary_expression_tree(BTree<MToken> &bt) {
-    // Unsure how to go about this.
-    printf("TODO: print_binary_expression_tree!\n");
+    while (pq) {
+        BNode<MToken>* n = new BNode<MToken>(pq.dequeue());
+        switch (n->data->toktype()) {
+            case MToken::Type::INTEGER: 
+                bs.push(n);
+                break;
+            case MToken::Type::OPERATOR: 
+                {
+                    assert(bs.size() >= 2);
+                    BNode<MToken>* r_operand = bs.pop();
+                    BNode<MToken>* l_operand = bs.pop();
+                    n->left = l_operand;
+                    n->right = r_operand;
+                    bs.push(n);
+                }
+                break;
+            default: 
+                printf("Queue should be in post-fix notation!\n"); 
+                assert(false); 
+                return nullptr;
+        }
+    }
+    assert(bs.size() == 1);
+    return bs.pop();
+}
+
+double bnode_eval(BNode<MToken>* node) {
+    switch (node->data->toktype()) {
+        case MToken::Type::INTEGER:
+            return (double) node->data->value_int();
+        case MToken::Type::OPERATOR: 
+            assert(node->full());
+            {
+                switch (node->data->value_operator()) {
+                    case MOperator::ADD:
+                        return bnode_eval(node->left) + bnode_eval(node->right);
+                    case MOperator::SUB:
+                        return bnode_eval(node->left) - bnode_eval(node->right);
+                    case MOperator::MULT:
+                        return bnode_eval(node->left) * bnode_eval(node->right);
+                    case MOperator::DIV:
+                        return bnode_eval(node->left) / bnode_eval(node->right);
+                    case MOperator::PWR:
+                        return pow(bnode_eval(node->left), bnode_eval(node->right));
+                    case MOperator::MOD:
+                        return remainder(bnode_eval(node->left), bnode_eval(node->right));
+                    defualt:
+                        printf("BAD CASE!\n");
+                        assert(false);
+                        return 0.0f;
+                }
+            };
+        default: 
+            printf("Queue should be in post-fix notation!\n"); 
+            assert(false); 
+            return 0.0f;
+    }
+}
+
+// https://stackoverflow.com/questions/36802354/print-binary-tree-in-a-pretty-way-using-c
+void print_bnode(BNode<MToken> *node, const char* prefix, bool isLeft) {
+    if( node == nullptr ) return;
+    
+    printf("%s", prefix);
+    printf(isLeft ? "├───" : "└───" );
+
+    // print the value of the node
+    node->data->print();
+    printf("\n");
+    
+    char* npref = new char[strlen(prefix)+5];
+    strcpy(npref,prefix);
+    strcat(npref, isLeft ? "│   " : "    ");
+
+    // enter the next tree level - left and right branch
+    print_bnode(node->left, npref, true);
+    print_bnode(node->right, npref, false);
+
+}
+
+void print_bnode(BNode<MToken>* node) {
+    print_bnode(node, "", false);
 }
 
 int main(int argc, const char* argv[]) {
@@ -277,8 +357,18 @@ int main(int argc, const char* argv[]) {
     printf("Output (Postfix Notation):\n");
     printQueue(queue);
 
+    printf("Building tree:\n");
+    BNode<MToken>* tree = build_binary_expression_tree(queue);
+    
+    printf("Output (Binary Syntax Tree):\n");
+    print_bnode(tree);
+
+    printf("Evaluation: %f\n", bnode_eval(tree));
+
     // TODO: Add evaluation
     // TODO: Add ability to convert to abstract syntax tree, infix, or prefix notation.
+
+    printf("Goodbye World!\n");
 
     return 0;
 }

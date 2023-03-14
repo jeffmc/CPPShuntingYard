@@ -18,7 +18,6 @@ struct LNode { // Linear-node
 template <typename T>
 struct Queue {
     LNode<T>* head = nullptr;
-    // friend void printQueue(const Queue<T>&&);
 
     operator bool() const { return head != nullptr; }
 
@@ -59,7 +58,6 @@ struct Queue {
 template <typename T>
 struct Stack {
     LNode<T>* head = nullptr;
-    // friend void printStack(const Stack&&);
 
     size_t size() const 
     {
@@ -112,11 +110,5 @@ struct BNode { // Binary tree node, has 2 children.
 
     bool has_children() const { return left != nullptr || right != nullptr; }
     bool is_leaf() const { return left == nullptr && right == nullptr; }
-};
-
-// Binary tree implementation
-template <typename T>
-struct BTree {
-    BNode<T>* head = nullptr;
-    
+    bool full() const { return left != nullptr && right != nullptr; }
 };
