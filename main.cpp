@@ -5,7 +5,6 @@
 
 #include "types.h"
 
-
 enum class MOperator { ADD, SUB, MULT, DIV, PWR, MOD, N };
 struct MOpSpec {
     MOperator enum_val;
@@ -26,6 +25,7 @@ const size_t opCount = sizeof(opSpecs) / sizeof(opSpecs[0]);
 
 const MOpSpec& op_spec(const MOperator op) {
     for (int i=0;i<opCount;++i) if (op == opSpecs[i].enum_val) return opSpecs[i];
+    assert(false);
     return BADSPEC;
 }
 
@@ -336,6 +336,34 @@ void print_bnode(BNode<MToken>* node) {
     print_bnode(node, "", false);
 }
 
+void print_bst_outfix(BNode<MToken>* node, const bool prefix) 
+{
+    if (prefix) node->data->print();
+    if (node->left) print_bst_outfix(node->left, prefix);
+    if (node->right) print_bst_outfix(node->right, prefix);
+    if (!prefix) node->data->print();
+}
+
+void print_bst_infix(BNode<MToken>* node, int parent_prec) 
+{
+    const bool is_op = node->data->is_operator();
+    int op_prec = -1;
+    if (is_op) {
+        op_prec = op_spec(node->data->value_operator()).precedence;
+    }
+
+    // TODO: Fix this grouping bug with precedence.
+    const bool grouping = is_op && parent_prec < op_prec;
+
+    if (grouping) printf("(");
+    if (node->left) print_bst_infix(node->left, op_prec);
+
+        node->data->print();
+
+    if (node->right) print_bst_infix(node->right, op_prec);
+    if (grouping) printf(")");
+}
+
 int main(int argc, const char* argv[]) {
     if (argc < 2) { 
         printf("Must specify an expression!\n");
@@ -363,7 +391,17 @@ int main(int argc, const char* argv[]) {
     printf("Output (Binary Syntax Tree):\n");
     print_bnode(tree);
 
-    printf("Evaluation: %f\n", bnode_eval(tree));
+    printf("Printing tree in prefix: ");
+    print_bst_outfix(tree, true);
+    printf("\n");
+    printf("Printing tree in postfix: ");
+    print_bst_outfix(tree, false);
+    printf("\n");
+    printf("Printing tree in infix: ");
+    print_bst_infix(tree, 1000);
+    printf("\n");
+
+    // printf("Evaluation: %f\n", bnode_eval(tree));
 
     // TODO: Add evaluation
     // TODO: Add ability to convert to abstract syntax tree, infix, or prefix notation.
