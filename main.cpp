@@ -1,3 +1,7 @@
+// Jeff McMillan 3-17-22 C++ Shunting Yard Algorithm
+// This program will take in an mathematical expression as an argument, parse it into tokens,
+// translate infix into postfix notation, build it into a binary expression tree, then output again as infix+prefix+postfix forms. 
+
 #include <cassert>
 #include <iostream>
 #include <cstring>
@@ -323,7 +327,7 @@ void print_bnode(BNode<MToken> *node, const char* prefix, bool isLeft) {
     printf("\n");
     
     char* npref = new char[strlen(prefix)+5];
-    strcpy(npref,prefix);
+    strcpy(npref, prefix);
     strcat(npref, isLeft ? "│   " : "    ");
 
     // enter the next tree level - left and right branch
@@ -336,15 +340,15 @@ void print_bnode(BNode<MToken>* node) {
     print_bnode(node, "", false);
 }
 
-void print_bst_outfix(BNode<MToken>* node, const bool prefix) 
+void print_bst_as_outfix(BNode<MToken>* node, const bool prefix) 
 {
     if (prefix) node->data->print();
-    if (node->left) print_bst_outfix(node->left, prefix);
-    if (node->right) print_bst_outfix(node->right, prefix);
+    if (node->left) print_bst_as_outfix(node->left, prefix);
+    if (node->right) print_bst_as_outfix(node->right, prefix);
     if (!prefix) node->data->print();
 }
 
-void print_bst_infix(BNode<MToken>* node, int parent_prec) 
+void print_bst_as_infix(BNode<MToken>* node, int parent_prec) 
 {
     const bool is_op = node->data->is_operator();
     int op_prec = -1;
@@ -353,20 +357,20 @@ void print_bst_infix(BNode<MToken>* node, int parent_prec)
     }
 
     // TODO: Fix this grouping bug with precedence.
-    const bool grouping = is_op && parent_prec < op_prec;
+    const bool grouping = is_op && parent_prec > op_prec;
 
     if (grouping) printf("(");
-    if (node->left) print_bst_infix(node->left, op_prec);
+    if (node->left) print_bst_as_infix(node->left, op_prec);
 
         node->data->print();
 
-    if (node->right) print_bst_infix(node->right, op_prec);
+    if (node->right) print_bst_as_infix(node->right, op_prec);
     if (grouping) printf(")");
 }
 
 int main(int argc, const char* argv[]) {
     if (argc < 2) { 
-        printf("Must specify an expression!\n");
+        printf("Must specify an expression!\nmain.exe \"expression goes here\"\nmain.exe \"3+9*(6-4)^3-9/2\"\n");
         return 1;
     }
 
@@ -392,13 +396,13 @@ int main(int argc, const char* argv[]) {
     print_bnode(tree);
 
     printf("Printing tree in prefix: ");
-    print_bst_outfix(tree, true);
+    print_bst_as_outfix(tree, true);
     printf("\n");
     printf("Printing tree in postfix: ");
-    print_bst_outfix(tree, false);
+    print_bst_as_outfix(tree, false);
     printf("\n");
     printf("Printing tree in infix: ");
-    print_bst_infix(tree, 1000);
+    print_bst_as_infix(tree, -1);
     printf("\n");
 
     // printf("Evaluation: %f\n", bnode_eval(tree));
